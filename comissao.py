@@ -3,6 +3,7 @@ import numpy as np
 import streamlit as st
 import plotly.express as px
 import matplotlib.pyplot as plt
+import plotly.graph_objects as go
 
 st.set_page_config(layout="wide")
 #Diminuir tamanho do cabeçalho do streamlit
@@ -34,6 +35,9 @@ st.markdown(
             background-color: #20252e;
             margin: 10px;
         }
+    [data-testid="stMarkdownContainer"] {
+        color: #ffffff;
+    }
     </style>
     """,
     unsafe_allow_html=True
@@ -49,7 +53,7 @@ def clean_df(uploaded_file):
     #Filtrar por vendas baixadas, por produtos e pelos grupos específicos
     df = df[df['Status da venda'] == 'Baixado']
     df = df[df['Tipo do Item'] == 'Produto']
-    grupos_desejados = ['Farmácia', 'Biscoitos e Petiscos', 'Antiparasitários', 'Acessórios', 'Roupa', 'Ração úmida']
+    grupos_desejados = ['Farmácia', 'Biscoitos e Petiscos', 'Antiparasitários', 'Acessórios', 'Roupas', 'Ração úmida', 'Higiene e Beleza']
     df = df[df['Grupo'].isin(grupos_desejados)]
 
     #Coluna 'Líquido' para float, tratamento de strings
@@ -98,9 +102,16 @@ def operacoes(df):
     #Agrupando e somando por mês para criação do gráfico de linhas
     bravecto_milbemax = bravecto_milbemax.groupby(['Produto/serviço', 'mes'])['Líquido'].sum().reset_index()
 
-    return gerar_graficos(total_mes, qtd_produto, lucro_produto, venda_funcionario, bravecto_milbemax)
+    # Filtro por ano e mês mais recentes
+    ano_recente = df['data'].dt.year.max()
+    mes_recente = df[df['data'].dt.year == ano_recente]['data'].dt.month.max()
+    df_recente = df[(df['data'].dt.year == ano_recente) & (df['data'].dt.month == mes_recente)]
 
-def gerar_graficos(total_mes, qtd_produto, lucro_produto, venda_funcionario, bravecto_milbemax):
+    meta = df_recente['Líquido'].sum()
+
+    return gerar_graficos(total_mes, qtd_produto, lucro_produto, venda_funcionario, bravecto_milbemax, meta)
+
+def gerar_graficos(total_mes, qtd_produto, lucro_produto, venda_funcionario, bravecto_milbemax, meta):
     def estilizar_grafico(fig, title_x=0.5, title_y=0.95):
         fig.update_layout(
             plot_bgcolor='rgba(0, 0, 0, 0)',
@@ -116,6 +127,8 @@ def gerar_graficos(total_mes, qtd_produto, lucro_produto, venda_funcionario, bra
         )
         return fig
 
+        
+    st.title("Análise de comissionamento")
     # Gráfico 1: Faturamento mensal
     fig_faturamento = px.line(total_mes, x='mes', y='faturamento', title='Faturamento mensal', markers=True)
     estilizar_grafico(fig_faturamento)
@@ -156,24 +169,66 @@ def gerar_graficos(total_mes, qtd_produto, lucro_produto, venda_funcionario, bra
     fig_bravecto.update_layout(
         legend=dict(
             font=dict(
-                family="Arial, sans-serif",  # Font family for the legend
-                size=14,  # Font size for the legend
-                color="rgb(255, 255, 255)"  # Set the legend font color explicitly
+                family="Arial, sans-serif", 
+                size=14,  
+                color="rgb(255, 255, 255)" 
             ),
-            title=None,  # Remove legend title (if any)
-            y=0.05,  # Move the legend lower (0 = bottom, 1 = top)
-            x=0.1,  # Center the legend horizontally
-            xanchor="center",  # Anchor the legend horizontally at its center
-            yanchor="bottom"  # Anchor the legend vertically at its bottom
+            title=None, 
+            y=0.05,  
+            x=0.1, 
+            xanchor="center", 
+            yanchor="bottom"
         ),
     )
     with col4:
         st.plotly_chart(fig_bravecto, use_container_width=True, key="bravecto_milbemax_chart")
 
+    # Gráfico 5: Meta
+    meta_maxima = 3600
+    meta = meta/7
+    metas = [0, 1400, 1700, 2150, 2600, 3150, 3600]
+    # Criar gráfico
+    fig = go.Figure()
 
+    # Barra de progresso (Valor atual)
+    fig.add_trace(go.Bar(
+        x=[meta], 
+        y=['Progresso'], 
+        orientation='h',
+        marker=dict(color='#1df5bb'),
+        name="Progresso Atual"
+    ))
+    # Adicionar linhas verticais nas metas
+    for meta in metas:
+        fig.add_shape(
+            type="line",
+            x0=meta, x1=meta, 
+            y0=0, y1=1, 
+            xref='x', yref='paper', 
+            line=dict(color="white", width=2, dash="dash") 
+        )
+    # Personalizar layout
+    fig.update_layout(
+        title="Progresso em relação às metas",
+        xaxis_title=None,
+        title_font=dict(size=18, family="Arial, sans-serif", color='#ffffff'),
+        xaxis=dict(
+            range=[0, meta_maxima],
+            tickvals=metas,
+            tickfont=dict(color="#ffffff") 
+        ),
+        yaxis=dict(showticklabels=False), 
+        showlegend=False,
+        height=100,
+        plot_bgcolor='rgba(0, 0, 0, 0)',
+        paper_bgcolor='rgba(0, 0, 0, 0)',
+        margin=dict(t=50, b=40, l=40, r=80)
+    )
 
+    st.plotly_chart(fig, use_container_width=True)
+    
 #Título
-st.title("Análise de comissionamento")
+st.title("Pet Stop")
 st.markdown("---")
 
 #Upload de arquivo
