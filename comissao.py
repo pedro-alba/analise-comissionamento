@@ -184,9 +184,9 @@ def gerar_graficos(total_mes, qtd_produto, lucro_produto, venda_funcionario, bra
         st.plotly_chart(fig_bravecto, use_container_width=True, key="bravecto_milbemax_chart")
 
     # Gráfico 5: Meta
-    meta_maxima = 3600
-    meta = meta/7
-    metas = [0, 1400, 1700, 2150, 2600, 3150, 3600]
+    meta_maxima = 25000
+    meta = meta
+    metas = [0, 10000, 12000, 15000, 18000, 22000, 25500]
     # Criar gráfico
     fig = go.Figure()
 
